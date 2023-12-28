@@ -98,26 +98,28 @@ def pep(session):
     result = [('Статус', 'Количество')]
     total = 0
     soup = BeautifulSoup(response.text, features='lxml')
-    main_section = soup.find('section')
-    numerical_pep_section = main_section.find('section', id='numerical-index')
+    main_section = find_tag(soup, 'section')
+    numerical_pep_section = find_tag(
+        main_section, 'section', {'id': 'numerical-index'}
+        )
     tr_tags = numerical_pep_section.find_all('tr')
     for pep in tqdm(tr_tags[1:]):
         td_tags = pep.find_all('td')
         status = td_tags[0].text
-        href = td_tags[1].find('a')['href']
+        href = find_tag(td_tags[1], 'a')['href']
         detail_link = urljoin(PEP_DOC_URL, href)
         response = get_response(session, detail_link)
         if response is None:
             return
         soup = BeautifulSoup(response.text, features='lxml')
-        pep_info_section = soup.find('section', {'id': 'pep-content'})
-        status_pep_detail_page = pep_info_section.find('abbr').text
+        pep_info_section = find_tag(soup, 'section', {'id': 'pep-content'})
+        status_pep_detail_page = find_tag(pep_info_section, 'abbr').text
         statuses[status_pep_detail_page] += 1
         total += 1
         if status_pep_detail_page not in EXPECTED_STATUS[status[1:]]:
-            logging.info(f'Несовпадающие статусы:'
-                         f'{detail_link}'
-                         f'Статус в карточке: {status_pep_detail_page}'
+            logging.info(f'Несовпадающие статусы: '
+                         f'{detail_link} '
+                         f'Статус в карточке: {status_pep_detail_page} '
                          f'Ожидаемые статусы: {EXPECTED_STATUS[status[1:]]}')
     for status, count in statuses.items():
         result.append((status, count))
