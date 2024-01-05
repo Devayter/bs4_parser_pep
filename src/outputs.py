@@ -36,7 +36,7 @@ def pretty_output(*args):
 
 
 def file_output(results, cli_args, encoding='utf-8'):
-    if os.environ.get('TEST_MODE'):
+    if os.environ.get('YANDEX_TEST_MODE', 'True') == 'True':
         results_dir = BASE_DIR / 'results'
     else:
         results_dir = RESULTS_DIR

@@ -76,7 +76,7 @@ def download(session):
         raise ParserFindTagException(download_error_message)
     archive_url = urljoin(downloads_url, pdf_a4_link)
     filename = archive_url.split('/')[-1]
-    if os.environ.get('TEST_MODE'):
+    if os.environ.get('YANDEX_TEST_MODE', 'True') == 'True':
         downloads_dir = BASE_DIR / 'downloads'
     else:
         downloads_dir = DOWNLOADS_DIR
