@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 from collections import defaultdict
 from urllib.parse import urljoin
@@ -7,7 +8,7 @@ import requests_cache
 from tqdm import tqdm
 
 from configs import configure_argument_parser, configure_logging
-from constants import (DOWNLOADS_DIR, EXPECTED_STATUS, MAIN_DOC_URL,
+from constants import (BASE_DIR, DOWNLOADS_DIR, EXPECTED_STATUS, MAIN_DOC_URL,
                        PEP_DOC_URL)
 from exceptions import (ParserFindPythonVertionsException,
                         ParserFindTagException)
@@ -75,8 +76,12 @@ def download(session):
         raise ParserFindTagException(download_error_message)
     archive_url = urljoin(downloads_url, pdf_a4_link)
     filename = archive_url.split('/')[-1]
-    DOWNLOADS_DIR.mkdir(exist_ok=True)
-    archive_path = DOWNLOADS_DIR / filename
+    if os.environ.get('TEST_MODE'):
+        downloads_dir = BASE_DIR / 'downloads'
+    else:
+        downloads_dir = DOWNLOADS_DIR
+    downloads_dir.mkdir(exist_ok=True)
+    archive_path = downloads_dir / filename
     response = session.get(archive_url)
     with open(archive_path, 'wb') as file:
         file.write(response.content)
