@@ -21,7 +21,6 @@ def control_output(results, cli_args):
 
 
 def default_output(results):
-    print(results)
     for row in results:
         print(*row)
 

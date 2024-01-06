@@ -1,5 +1,4 @@
 import logging
-import os
 import re
 from collections import defaultdict
 from urllib.parse import urljoin
@@ -8,35 +7,39 @@ import requests_cache
 from tqdm import tqdm
 
 from configs import configure_argument_parser, configure_logging
-from constants import (BASE_DIR, DOWNLOADS_DIR, EXPECTED_STATUS, MAIN_DOC_URL,
-                       PEP_DOC_URL)
+from constants import (BASE_DIR, DOWNLOADS_FOLDERS_NAME, EXPECTED_STATUS,
+                       MAIN_DOC_URL, PEP_DOC_URL)
 from exceptions import (ParserFindPythonVertionsException,
                         ParserFindTagException)
 from outputs import control_output
-from utils import (find_tag, find_tags_by_selector, get_soup,
-                   get_soup_for_iteration)
+from utils import find_tag, find_tags_by_selector, get_soup
 
-
-command_lines_arguments_message = 'Аргументы командной строки: {args}'
-download_complete_message = 'Архив был загружен и сохранён: {archive_path}'
-download_error_message = 'Некорректная ссылка для скачивания документации'
-start_parser_message = 'Парсер запущен!'
-stop_parser_message = 'Парсер завершил работу'
+COMMAND_LINES_ARGUMENTS_MESSAGE = 'Аргументы командной строки: {args}'
+DOWNLOAD_COMPLETE_MESSAGE = 'Архив был загружен и сохранён: {archive_path}'
+DOWNLOAD_ERROR_MESSAGE = 'Некорректная ссылка для скачивания документации'
+EXCEPT_ERROR_MESSAGE = 'Сбой в работе парсера {error}'
+LOGS_MESSAGE = ('Несовпадающие статусы: '
+                '{detail_link} '
+                'Статус в карточке: {status_pep_detail_page} '
+                'Ожидаемые статусы: {expected_status}')
+NOTHING_WAS_FOUND_MESSAGE = 'Ничего не нашлось'
+START_PARSER_MESSAGE = 'Парсер запущен!'
+STOP_PARSER_MESSAGE = 'Парсер завершил работу'
 
 
 def whats_new(session):
-    whats_new_url = urljoin(MAIN_DOC_URL, 'whatsnew/')
-    soup = get_soup(session, whats_new_url)
     sections_by_python = find_tags_by_selector(
-        soup,
-        '#what-s-new-in-python div.toctree-wrapper:first-of-type li.toctree-l1'
+        get_soup(session, urljoin(MAIN_DOC_URL, 'whatsnew/')),
+        '#what-s-new-in-python div.toctree-wrapper:first-of-type '
+        'a:contains("What")'
     )
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
     for section in tqdm(sections_by_python):
-        version_a_tag = find_tag(section, 'a')
-        href = version_a_tag['href']
-        version_link = urljoin(whats_new_url, href)
-        soup = get_soup_for_iteration(session, version_link)
+        href = section['href']
+        version_link = urljoin(urljoin(MAIN_DOC_URL, 'whatsnew/'), href)
+        soup = get_soup(session, version_link)
+        if soup is None:
+            continue
         results.append(
             (version_link, find_tag(soup, 'h1').text,
              find_tag(soup, 'dl').text.replace('\n', ' '))
@@ -52,7 +55,7 @@ def latest_versions(session):
             a_tags = ul.find_all('a')
             break
     else:
-        raise ParserFindPythonVertionsException('Ничего не нашлось')
+        raise ParserFindPythonVertionsException(NOTHING_WAS_FOUND_MESSAGE)
     results = [('Ссылка на документацию', 'Версия', 'Статус')]
     pattern = r'Python (?P<version>\d\.\d+) \((?P<status>.*)\)'
     for a_tag in a_tags:
@@ -72,49 +75,49 @@ def download(session):
         'div.body table.docutils a[href$="pdf-a4.zip"]'
         )['href']
     if not pdf_a4_link:
-        logging.error(download_error_message, stack_info=True)
-        raise ParserFindTagException(download_error_message)
+        raise ParserFindTagException(DOWNLOAD_ERROR_MESSAGE)
     archive_url = urljoin(downloads_url, pdf_a4_link)
     filename = archive_url.split('/')[-1]
-    if os.environ.get('YANDEX_TEST_MODE', 'True') == 'True':
-        downloads_dir = BASE_DIR / 'downloads'
-    else:
-        downloads_dir = DOWNLOADS_DIR
+    downloads_dir = BASE_DIR / DOWNLOADS_FOLDERS_NAME
     downloads_dir.mkdir(exist_ok=True)
     archive_path = downloads_dir / filename
     response = session.get(archive_url)
     with open(archive_path, 'wb') as file:
         file.write(response.content)
-    logging.info(download_complete_message.format(archive_path=archive_path))
+    logging.info(DOWNLOAD_COMPLETE_MESSAGE.format(archive_path=archive_path))
 
 
 def pep(session):
     statuses = defaultdict(int)
     soup = get_soup(session, PEP_DOC_URL)
-    result = [('Статус', 'Количество')]
     tr_tags = find_tags_by_selector(soup, 'section section#numerical-index tr')
     logs_messages = []
     for pep in tqdm(tr_tags[1:]):
         td_tags = pep.find_all('td')
         status = td_tags[0].text
+        expected_status = EXPECTED_STATUS[status[1:]]
         href = find_tag(td_tags[1], 'a')['href']
         detail_link = urljoin(PEP_DOC_URL, href)
-        soup = get_soup_for_iteration(session, detail_link)
+        soup = get_soup(session, detail_link)
+        if soup is None:
+            continue
         pep_info_section = find_tag(soup, 'section', {'id': 'pep-content'})
         status_pep_detail_page = find_tag(pep_info_section, 'abbr').text
         statuses[status_pep_detail_page] += 1
-        if status_pep_detail_page not in EXPECTED_STATUS[status[1:]]:
+        if status_pep_detail_page not in expected_status:
             logs_messages.append(
-                f'Несовпадающие статусы: '
-                f'{detail_link} '
-                f'Статус в карточке: {status_pep_detail_page} '
-                f'Ожидаемые статусы: {EXPECTED_STATUS[status[1:]]}'
+                LOGS_MESSAGE.format(
+                    detail_link=detail_link,
+                    status_pep_detail_page=status_pep_detail_page,
+                    expected_status=expected_status
+                )
             )
-    logging.info(*logs_messages)
-    for status, count in statuses.items():
-        result.append((status, count))
+    for message in logs_messages:
+        logging.info(message)
     return [
-        ('Статус', 'Количество'), *result, ('Всего', sum(statuses.values()))
+        ('Статус', 'Количество'),
+        *statuses.items(),
+        ('Всего', sum(statuses.values()))
         ]
 
 
@@ -128,21 +131,23 @@ MODE_TO_FUNCTION = {
 
 def main():
     configure_logging()
-    logging.info(start_parser_message)
+    logging.info(START_PARSER_MESSAGE)
     arg_parser = configure_argument_parser(MODE_TO_FUNCTION.keys())
     args = arg_parser.parse_args()
-    logging.info(command_lines_arguments_message.format(args=args))
-    session = requests_cache.CachedSession()
-    if args.clear_cache:
-        session.cache.clear()
-    parser_mode = args.mode
+    logging.info(COMMAND_LINES_ARGUMENTS_MESSAGE.format(args=args))
     try:
+        session = requests_cache.CachedSession()
+        if args.clear_cache:
+            session.cache.clear()
+        parser_mode = args.mode
         results = MODE_TO_FUNCTION[parser_mode](session)
-        if results is not None:
+        if results:
             control_output(results, args)
     except Exception as error:
-        logging.error(f'Сбой в работе парсера {error}', stack_info=True)
-    logging.info(stop_parser_message)
+        logging.error(
+            EXCEPT_ERROR_MESSAGE.format(error=error), stack_info=True
+            )
+    logging.info(STOP_PARSER_MESSAGE)
 
 
 if __name__ == '__main__':

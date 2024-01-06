@@ -48,3 +48,15 @@
 `python main.py download`
 Информация о предложениях по улучшению Python (PEP):
 `python main.py pep`
+
+## Стек технологий
+
+* Язык программирования: Python
+* Веб-скрапинг и парсинг HTML: BeautifulSoup
+* HTTP-запросы: Requests
+* Форматированный вывод в консоль: PrettyTable
+* Логгирование: модуль logging
+
+## Авторы
+
+* Павел Рябов
