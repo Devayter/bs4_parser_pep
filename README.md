@@ -55,8 +55,7 @@
 * Веб-скрапинг и парсинг HTML: BeautifulSoup
 * HTTP-запросы: Requests
 * Форматированный вывод в консоль: PrettyTable
-* Логгирование: модуль logging
 
 ## Авторы
 
-* Павел Рябов
+* [Павел Рябов](https://github.com/Devayter/)

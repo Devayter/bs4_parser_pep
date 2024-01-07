@@ -1,23 +1,22 @@
 import csv
 import datetime as dt
 import logging
-import os
 
 from prettytable import PrettyTable
 
-from constants import BASE_DIR, DATETIME_FORMAT, RESULTS_DIR
+from constants import (BASE_DIR, DATETIME_FORMAT, DEFAULT, OUTPUT_FILE,
+                       OUTPUT_PRETTY, RESULTS_FOLDER)
 
 
 file_output_message = 'Файл с результатами был сохранён: {file_path}'
 
 
-def control_output(results, cli_args):
-    print(classmethod)
+def control_output(results, cli_args, DEFAULT=DEFAULT):
     output = cli_args.output
     if output in OUTPUTS:
         OUTPUTS[output](results, cli_args)
     else:
-        default_output(results)
+        OUTPUTS[DEFAULT](results)
 
 
 def default_output(results):
@@ -25,8 +24,7 @@ def default_output(results):
         print(*row)
 
 
-def pretty_output(*args):
-    results = args[0]
+def pretty_output(results, *args):
     table = PrettyTable()
     table.field_names = results[0]
     table.align = 'l'
@@ -35,10 +33,7 @@ def pretty_output(*args):
 
 
 def file_output(results, cli_args, encoding='utf-8'):
-    if os.environ.get('YANDEX_TEST_MODE', 'True') == 'True':
-        results_dir = BASE_DIR / 'results'
-    else:
-        results_dir = RESULTS_DIR
+    results_dir = BASE_DIR / RESULTS_FOLDER
     results_dir.mkdir(exist_ok=True)
     parser_mode = cli_args.mode
     now = dt.datetime.now()
@@ -52,6 +47,7 @@ def file_output(results, cli_args, encoding='utf-8'):
 
 
 OUTPUTS = {
-    'pretty': pretty_output,
-    'file': file_output
+    OUTPUT_PRETTY: pretty_output,
+    OUTPUT_FILE: file_output,
+    DEFAULT: default_output
 }

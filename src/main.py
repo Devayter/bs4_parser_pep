@@ -7,10 +7,10 @@ import requests_cache
 from tqdm import tqdm
 
 from configs import configure_argument_parser, configure_logging
-from constants import (BASE_DIR, DOWNLOADS_FOLDERS_NAME, EXPECTED_STATUS,
+from constants import (BASE_DIR, DOWNLOADS_FOLDER, EXPECTED_STATUS,
                        MAIN_DOC_URL, PEP_DOC_URL)
 from exceptions import (ParserFindPythonVertionsException,
-                        ParserFindTagException)
+                        ParserFindTagException, SoupCreateException)
 from outputs import control_output
 from utils import find_tag, find_tags_by_selector, get_soup
 
@@ -25,25 +25,29 @@ LOGS_MESSAGE = ('Несовпадающие статусы: '
 NOTHING_WAS_FOUND_MESSAGE = 'Ничего не нашлось'
 START_PARSER_MESSAGE = 'Парсер запущен!'
 STOP_PARSER_MESSAGE = 'Парсер завершил работу'
+SOUP_CREATE_ERROR = 'Ошибка при создании супа {error}'
 
 
 def whats_new(session):
-    sections_by_python = find_tags_by_selector(
+    results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
+    for a_tag in tqdm(find_tags_by_selector(
         get_soup(session, urljoin(MAIN_DOC_URL, 'whatsnew/')),
         '#what-s-new-in-python div.toctree-wrapper:first-of-type '
         'a:contains("What")'
-    )
-    results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
-    for section in tqdm(sections_by_python):
-        href = section['href']
+    )):
+        href = a_tag['href']
         version_link = urljoin(urljoin(MAIN_DOC_URL, 'whatsnew/'), href)
-        soup = get_soup(session, version_link)
-        if soup is None:
-            continue
+        try:
+            soup = get_soup(session, version_link)
+        except SoupCreateException as error:
+            logging.error(
+                SOUP_CREATE_ERROR.format(error=error),
+                stack_info=True
+            )
         results.append(
             (version_link, find_tag(soup, 'h1').text,
              find_tag(soup, 'dl').text.replace('\n', ' '))
-            )
+        )
     return results
 
 
@@ -78,7 +82,7 @@ def download(session):
         raise ParserFindTagException(DOWNLOAD_ERROR_MESSAGE)
     archive_url = urljoin(downloads_url, pdf_a4_link)
     filename = archive_url.split('/')[-1]
-    downloads_dir = BASE_DIR / DOWNLOADS_FOLDERS_NAME
+    downloads_dir = BASE_DIR / DOWNLOADS_FOLDER
     downloads_dir.mkdir(exist_ok=True)
     archive_path = downloads_dir / filename
     response = session.get(archive_url)
@@ -98,9 +102,13 @@ def pep(session):
         expected_status = EXPECTED_STATUS[status[1:]]
         href = find_tag(td_tags[1], 'a')['href']
         detail_link = urljoin(PEP_DOC_URL, href)
-        soup = get_soup(session, detail_link)
-        if soup is None:
-            continue
+        try:
+            soup = get_soup(session, detail_link)
+        except SoupCreateException as error:
+            logging.error(
+                SOUP_CREATE_ERROR.format(error=error),
+                stack_info=True
+            )
         pep_info_section = find_tag(soup, 'section', {'id': 'pep-content'})
         status_pep_detail_page = find_tag(pep_info_section, 'abbr').text
         statuses[status_pep_detail_page] += 1
@@ -112,13 +120,12 @@ def pep(session):
                     expected_status=expected_status
                 )
             )
-    for message in logs_messages:
-        logging.info(message)
+    list(map(logging.info, logs_messages))
     return [
         ('Статус', 'Количество'),
         *statuses.items(),
         ('Всего', sum(statuses.values()))
-        ]
+    ]
 
 
 MODE_TO_FUNCTION = {

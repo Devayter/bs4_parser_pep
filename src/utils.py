@@ -3,7 +3,7 @@ from requests import RequestException
 
 from exceptions import ParserFindTagException
 
-RESPONSE_URL_ERROR_MESSAGE = 'Возникла ошибка при загрузке страницы {url}'
+RESPONSE_URL_ERROR_MESSAGE = '{error} при загрузке страницы {url}'
 FIND_TAG_ERROR_MESSAGE = 'Не найден тег {tag} {attrs}'
 FIND_TAGS_SELECTOR_ERROR_MESSAGE = 'Некорректный тег в селекторе {selectors}'
 
@@ -14,8 +14,8 @@ def get_response(session, url, encoding='utf-8'):
         response.encoding = encoding
         return response
     except RequestException as error:
-        raise RequestException(
-            RESPONSE_URL_ERROR_MESSAGE.format(url=url), error
+        raise ConnectionError(
+            RESPONSE_URL_ERROR_MESSAGE.format(url=url, error=error)
             )
 
 

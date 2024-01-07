@@ -6,3 +6,8 @@ class ParserFindTagException(Exception):
 class ParserFindPythonVertionsException(Exception):
     """Вызывается, если список версий отсутствует на странице."""
     pass
+
+
+class SoupCreateException(Exception):
+    """Вызывается при ошибке создания супа"""
+    pass
