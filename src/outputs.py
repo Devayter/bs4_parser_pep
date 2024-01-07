@@ -4,22 +4,19 @@ import logging
 
 from prettytable import PrettyTable
 
-from constants import (BASE_DIR, DATETIME_FORMAT, DEFAULT, OUTPUT_FILE,
+from constants import (BASE_DIR, DATETIME_FORMAT, OUTPUT_FILE,
                        OUTPUT_PRETTY, RESULTS_FOLDER)
 
 
 file_output_message = 'Файл с результатами был сохранён: {file_path}'
 
 
-def control_output(results, cli_args, DEFAULT=DEFAULT):
+def control_output(results, cli_args):
     output = cli_args.output
-    if output in OUTPUTS:
-        OUTPUTS[output](results, cli_args)
-    else:
-        OUTPUTS[DEFAULT](results)
+    OUTPUTS[output](results, cli_args)
 
 
-def default_output(results):
+def default_output(results, *args):
     for row in results:
         print(*row)
 
@@ -49,5 +46,5 @@ def file_output(results, cli_args, encoding='utf-8'):
 OUTPUTS = {
     OUTPUT_PRETTY: pretty_output,
     OUTPUT_FILE: file_output,
-    DEFAULT: default_output
+    None: default_output
 }

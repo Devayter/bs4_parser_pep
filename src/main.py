@@ -10,7 +10,7 @@ from configs import configure_argument_parser, configure_logging
 from constants import (BASE_DIR, DOWNLOADS_FOLDER, EXPECTED_STATUS,
                        MAIN_DOC_URL, PEP_DOC_URL)
 from exceptions import (ParserFindPythonVertionsException,
-                        ParserFindTagException, SoupCreateException)
+                        ParserFindTagException)
 from outputs import control_output
 from utils import find_tag, find_tags_by_selector, get_soup
 
@@ -30,6 +30,7 @@ SOUP_CREATE_ERROR = 'Ошибка при создании супа {error}'
 
 def whats_new(session):
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
+    logs_messages = []
     for a_tag in tqdm(find_tags_by_selector(
         get_soup(session, urljoin(MAIN_DOC_URL, 'whatsnew/')),
         '#what-s-new-in-python div.toctree-wrapper:first-of-type '
@@ -39,15 +40,15 @@ def whats_new(session):
         version_link = urljoin(urljoin(MAIN_DOC_URL, 'whatsnew/'), href)
         try:
             soup = get_soup(session, version_link)
-        except SoupCreateException as error:
-            logging.error(
-                SOUP_CREATE_ERROR.format(error=error),
-                stack_info=True
+            results.append(
+                (version_link, find_tag(soup, 'h1').text,
+                 find_tag(soup, 'dl').text.replace('\n', ' '))
             )
-        results.append(
-            (version_link, find_tag(soup, 'h1').text,
-             find_tag(soup, 'dl').text.replace('\n', ' '))
-        )
+        except AttributeError as error:
+            logs_messages.append(
+                SOUP_CREATE_ERROR.format(error=error)
+            )
+    list(map(logging.error, logs_messages))
     return results
 
 
@@ -95,7 +96,7 @@ def pep(session):
     statuses = defaultdict(int)
     soup = get_soup(session, PEP_DOC_URL)
     tr_tags = find_tags_by_selector(soup, 'section section#numerical-index tr')
-    logs_messages = []
+    logs_info_messages, logs_error_messages = [], []
     for pep in tqdm(tr_tags[1:]):
         td_tags = pep.find_all('td')
         status = td_tags[0].text
@@ -104,23 +105,21 @@ def pep(session):
         detail_link = urljoin(PEP_DOC_URL, href)
         try:
             soup = get_soup(session, detail_link)
-        except SoupCreateException as error:
-            logging.error(
-                SOUP_CREATE_ERROR.format(error=error),
-                stack_info=True
-            )
-        pep_info_section = find_tag(soup, 'section', {'id': 'pep-content'})
-        status_pep_detail_page = find_tag(pep_info_section, 'abbr').text
-        statuses[status_pep_detail_page] += 1
+            pep_info_section = find_tag(soup, 'section', {'id': 'pep-content'})
+            status_pep_detail_page = find_tag(pep_info_section, 'abbr').text
+            statuses[status_pep_detail_page] += 1
+        except AttributeError as error:
+            logs_error_messages.append(SOUP_CREATE_ERROR.format(error=error))
         if status_pep_detail_page not in expected_status:
-            logs_messages.append(
+            logs_info_messages.append(
                 LOGS_MESSAGE.format(
                     detail_link=detail_link,
                     status_pep_detail_page=status_pep_detail_page,
                     expected_status=expected_status
                 )
             )
-    list(map(logging.info, logs_messages))
+    list(map(logging.info, logs_info_messages))
+    list(map(logging.error, logs_error_messages))
     return [
         ('Статус', 'Количество'),
         *statuses.items(),

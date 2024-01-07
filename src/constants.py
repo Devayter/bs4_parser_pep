@@ -17,7 +17,6 @@ DT_LOGS_FORMAT = '%d.%m.%Y %H:%M:%S'
 MAIN_DOC_URL = 'https://docs.python.org/3/'
 PEP_DOC_URL = 'https://peps.python.org/'
 
-DEFAULT = 'Стандартный вывод'
 OUTPUT_FILE = 'file'
 OUTPUT_PRETTY = 'pretty'
 EXPECTED_STATUS = {
