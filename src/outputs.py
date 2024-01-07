@@ -8,7 +8,7 @@ from constants import (BASE_DIR, DATETIME_FORMAT, OUTPUT_FILE,
                        OUTPUT_PRETTY, RESULTS_FOLDER)
 
 
-file_output_message = 'Файл с результатами был сохранён: {file_path}'
+FILE_OUTPUT_MESSAGE = 'Файл с результатами был сохранён: {file_path}'
 
 
 def control_output(results, cli_args):
@@ -40,7 +40,7 @@ def file_output(results, cli_args, encoding='utf-8'):
     with open(file_path, 'w', encoding=encoding) as f:
         writer = csv.writer(f, dialect=csv.unix_dialect)
         writer.writerows(results)
-    logging.info(file_output_message.format(file_path=file_path))
+    logging.info(FILE_OUTPUT_MESSAGE.format(file_path=file_path))
 
 
 OUTPUTS = {
