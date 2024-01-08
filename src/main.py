@@ -1,5 +1,6 @@
 import logging
 import re
+import traceback
 from collections import defaultdict
 from urllib.parse import urljoin
 
@@ -17,7 +18,7 @@ from utils import find_tag, find_tags_by_selector, get_soup
 COMMAND_LINES_ARGUMENTS_MESSAGE = 'Аргументы командной строки: {args}'
 DOWNLOAD_COMPLETE_MESSAGE = 'Архив был загружен и сохранён: {archive_path}'
 DOWNLOAD_ERROR_MESSAGE = 'Некорректная ссылка для скачивания документации'
-EXCEPT_ERROR_MESSAGE = 'Сбой в работе парсера {error}'
+EXCEPT_ERROR_MESSAGE = 'Сбой в работе парсера {error}, {traceback}'
 LOGS_MESSAGE = ('Несовпадающие статусы: '
                 '{detail_link} '
                 'Статус в карточке: {status_pep_detail_page} '
@@ -44,7 +45,7 @@ def whats_new(session):
                 (version_link, find_tag(soup, 'h1').text,
                  find_tag(soup, 'dl').text.replace('\n', ' '))
             )
-        except AttributeError as error:
+        except TypeError as error:
             logs_messages.append(
                 SOUP_CREATE_ERROR.format(error=error)
             )
@@ -108,16 +109,16 @@ def pep(session):
             pep_info_section = find_tag(soup, 'section', {'id': 'pep-content'})
             status_pep_detail_page = find_tag(pep_info_section, 'abbr').text
             statuses[status_pep_detail_page] += 1
-        except AttributeError as error:
-            logs_error_messages.append(SOUP_CREATE_ERROR.format(error=error))
-        if status_pep_detail_page not in expected_status:
-            logs_info_messages.append(
-                LOGS_MESSAGE.format(
-                    detail_link=detail_link,
-                    status_pep_detail_page=status_pep_detail_page,
-                    expected_status=expected_status
+            if status_pep_detail_page not in expected_status:
+                logs_info_messages.append(
+                    LOGS_MESSAGE.format(
+                        detail_link=detail_link,
+                        status_pep_detail_page=status_pep_detail_page,
+                        expected_status=expected_status
+                    )
                 )
-            )
+        except TypeError as error:
+            logs_error_messages.append(SOUP_CREATE_ERROR.format(error=error))
     list(map(logging.info, logs_info_messages))
     list(map(logging.error, logs_error_messages))
     return [
@@ -151,7 +152,8 @@ def main():
             control_output(results, args)
     except Exception as error:
         logging.error(
-            EXCEPT_ERROR_MESSAGE.format(error=error), stack_info=True
+            EXCEPT_ERROR_MESSAGE.format(
+                error=error, traceback=traceback.format_exc())
             )
     logging.info(STOP_PARSER_MESSAGE)
 

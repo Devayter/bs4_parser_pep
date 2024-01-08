@@ -11,11 +11,6 @@ from constants import (BASE_DIR, DATETIME_FORMAT, OUTPUT_FILE,
 FILE_OUTPUT_MESSAGE = 'Файл с результатами был сохранён: {file_path}'
 
 
-def control_output(results, cli_args):
-    output = cli_args.output
-    OUTPUTS[output](results, cli_args)
-
-
 def default_output(results, *args):
     for row in results:
         print(*row)
@@ -48,3 +43,7 @@ OUTPUTS = {
     OUTPUT_FILE: file_output,
     None: default_output
 }
+
+
+def control_output(results, cli_args):
+    OUTPUTS[cli_args.output](results, cli_args)
