@@ -152,7 +152,8 @@ def main():
     except Exception as error:
         logging.error(
             EXCEPT_ERROR_MESSAGE.format(error=error),
-            exc_info=True, stack_info=True
+            exc_info=True,
+            stack_info=True
         )
     logging.info(STOP_PARSER_MESSAGE)
 
