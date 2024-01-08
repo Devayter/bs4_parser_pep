@@ -44,7 +44,7 @@ def whats_new(session):
                 (version_link, find_tag(soup, 'h1').text,
                  find_tag(soup, 'dl').text.replace('\n', ' '))
             )
-        except TypeError as error:
+        except ConnectionError as error:
             logs_messages.append(
                 SOUP_CREATE_ERROR.format(error=error)
             )
@@ -116,7 +116,7 @@ def pep(session):
                         expected_status=expected_status
                     )
                 )
-        except TypeError as error:
+        except ConnectionError as error:
             logs_error_messages.append(SOUP_CREATE_ERROR.format(error=error))
     list(map(logging.info, logs_info_messages))
     list(map(logging.error, logs_error_messages))
