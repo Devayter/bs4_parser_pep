@@ -1,6 +1,5 @@
 import logging
 import re
-import traceback
 from collections import defaultdict
 from urllib.parse import urljoin
 
@@ -18,7 +17,7 @@ from utils import find_tag, find_tags_by_selector, get_soup
 COMMAND_LINES_ARGUMENTS_MESSAGE = 'Аргументы командной строки: {args}'
 DOWNLOAD_COMPLETE_MESSAGE = 'Архив был загружен и сохранён: {archive_path}'
 DOWNLOAD_ERROR_MESSAGE = 'Некорректная ссылка для скачивания документации'
-EXCEPT_ERROR_MESSAGE = 'Сбой в работе парсера {error}, {traceback}'
+EXCEPT_ERROR_MESSAGE = 'Сбой в работе парсера {error}'
 LOGS_MESSAGE = ('Несовпадающие статусы: '
                 '{detail_link} '
                 'Статус в карточке: {status_pep_detail_page} '
@@ -152,9 +151,9 @@ def main():
             control_output(results, args)
     except Exception as error:
         logging.error(
-            EXCEPT_ERROR_MESSAGE.format(
-                error=error, traceback=traceback.format_exc())
-            )
+            EXCEPT_ERROR_MESSAGE.format(error=error),
+            exc_info=True, stack_info=True
+        )
     logging.info(STOP_PARSER_MESSAGE)
 
 
